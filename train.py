@@ -47,6 +47,54 @@ preprocessor = ColumnTransformer([
 ])
 
 x_train = preprocessor.fit_transform(x_train)
-x_test = preprocessor.fit_transform(x_test)
+x_test = preprocessor.transform(x_test)
+# use label encoder for converting yes/no to number/float
+from sklearn.preprocessing import LabelEncoder
+encoder = LabelEncoder()
+y_train = encoder.fit_transform(y_train)
+y_test = encoder.transform(y_test)
 
-print("Finished")
+# Convert the data into tensors
+x_train_tensor = torch.tensor(x_train, dtype=torch.float32)
+x_test_tensor = torch.tensor(x_test, dtype=torch.float32)
+y_train_tensor = torch.tensor(y_train, dtype=torch.float32).reshape(-1,1)
+y_test_tensor = torch.tensor(y_test, dtype=torch.float32).reshape(-1,1)
+
+
+# create the FNN architecture by calling model.py
+from model import create_model
+input_features = x_train_tensor.shape[1]
+model = create_model(input_features)
+
+
+# set attributes for training the model
+criterion = nn.BCEWithLogitsLoss()
+optimizer = torch.optim.Adam(
+    model.parameters(),
+    lr = 0.0001
+)
+epochs = 100
+#start training the model
+for epoch in range(epochs):
+    model.train()
+    prediction = model(x_train_tensor)
+    loss = criterion(prediction, y_train_tensor)
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+    print(f"Epoch {epoch+1} and Loss : {loss.item():.4f}")
+
+#start testing the model
+model.eval()
+with torch.no_grad():
+    logits = model(x_test_tensor)
+    probabilities = torch.sigmoid(logits)
+    predicted_classes = (probabilities >= 0.5).float()
+    accuracy = (predicted_classes.eq(y_test_tensor).float().mean().item())
+    print(f"Test accuracy : {accuracy:2f}")
+
+# save this model
+torch.save(
+    model.state_dict(), "my_model.pt"
+)
+

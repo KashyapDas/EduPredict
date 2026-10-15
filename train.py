@@ -60,39 +60,53 @@ x_test_tensor = torch.tensor(x_test, dtype=torch.float32)
 y_train_tensor = torch.tensor(y_train, dtype=torch.float32).reshape(-1,1)
 y_test_tensor = torch.tensor(y_test, dtype=torch.float32).reshape(-1,1)
 
+# Mini-Bacth Loading method
+from torch.utils.data import TensorDataset, DataLoader
+train_dataset = TensorDataset(x_train_tensor, y_train_tensor)
+test_dataset = TensorDataset(x_test_tensor, y_test_tensor)
+train_dataLoader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+test_dataLoader = DataLoader(test_dataset, batch_size=32, shuffle=True)
 
 # create the FNN architecture by calling model.py
 from model import create_model
 input_features = x_train_tensor.shape[1]
 model = create_model(input_features)
 
-
 # set attributes for training the model
 criterion = nn.BCEWithLogitsLoss()
-optimizer = torch.optim.Adam(
-    model.parameters(),
-    lr = 0.0001
-)
+optimizer = torch.optim.Adam(model.parameters(), lr = 0.0001)
 epochs = 100
-#start training the model
-for epoch in range(epochs):
-    model.train()
-    prediction = model(x_train_tensor)
-    loss = criterion(prediction, y_train_tensor)
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
-    print(f"Epoch {epoch+1} and Loss : {loss.item():.4f}")
 
-#start testing the model
+#start training the model
+model.train()
+for epoch in range(epochs):
+    for batch_features, batch_labels in train_dataLoader:
+        # caluclate the prediction
+        prediction = model(batch_features)
+        #calculate the losss
+        loss = criterion(prediction, batch_labels)
+        # set the gradient to 0
+        optimizer.zero_grad
+        # Backpropogate to update the weight and bias
+        loss.backward()
+        # calculate the gradient when doing backpropogate
+        optimizer.step()
+
 model.eval()
+
 with torch.no_grad():
     logits = model(x_test_tensor)
     probabilities = torch.sigmoid(logits)
-    predicted_classes = (probabilities >= 0.5).float()
-    accuracy = (predicted_classes.eq(y_test_tensor).float().mean().item())
-    print(f"Test accuracy : {accuracy:2f}")
+    predicted_classes = (probabilities >= 0.5).int().cpu().numpy().ravel()
+    
+    if predicted_classes >=0.5:
+        print("Pass")
+    print("Fail")
 
+
+
+
+# Save the model
 torch.save(
     {
         "input_features": input_features,
@@ -101,6 +115,7 @@ torch.save(
     "my_model.pt"
 )
 
+# Store the preprocessor and encoder records
 import joblib
 joblib.dump(preprocessor, "preprocessor.pkl")
 joblib.dump(encoder, "label_encoder.pkl")

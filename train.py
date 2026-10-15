@@ -93,8 +93,10 @@ with torch.no_grad():
     accuracy = (predicted_classes.eq(y_test_tensor).float().mean().item())
     print(f"Test accuracy : {accuracy:2f}")
 
-# save this model
 torch.save(
-    model.state_dict(), "my_model.pt"
+    {
+        "input_features": input_features,
+        "model_state_dict": model.state_dict()
+    },
+    "my_model.pt"
 )
-

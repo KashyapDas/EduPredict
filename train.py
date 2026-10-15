@@ -5,7 +5,6 @@ from sklearn.model_selection import train_test_split
 
 # get the dataset
 df = pd.read_csv("student_data.csv")
-print(df.head())
 
 # if duplicate value exists then remove it
 if df.duplicated().any():
@@ -18,7 +17,8 @@ y = df["passed"]
 x_train, x_test, y_train, y_test = train_test_split(
     x,y,
     test_size=0.2,
-    random_state=42
+    random_state=42,
+    stratify=y
 )
 
 # data pre-processing
@@ -29,7 +29,7 @@ from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder
 
 numeric_columns = x_train.select_dtypes(include=["number"]).columns.tolist()
-categorical_column = x_train.select_dtypes(include=["object","category","bool"]).columns.tolist()
+categorical_column = x_train.select_dtypes(include=["object","category","bool","str"]).columns.tolist()
 
 numeric_pipelines = Pipeline([
     ("imputer",SimpleImputer(strategy="median")),
@@ -65,7 +65,7 @@ from torch.utils.data import TensorDataset, DataLoader
 train_dataset = TensorDataset(x_train_tensor, y_train_tensor)
 test_dataset = TensorDataset(x_test_tensor, y_test_tensor)
 train_dataLoader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-test_dataLoader = DataLoader(test_dataset, batch_size=32, shuffle=True)
+test_dataLoader = DataLoader(test_dataset, batch_size=32, shuffle=False)
 
 # create the FNN architecture by calling model.py
 from model import create_model
@@ -77,45 +77,40 @@ criterion = nn.BCEWithLogitsLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr = 0.0001)
 epochs = 100
 
+torch.manual_seed(42)
+
 #start training the model
 model.train()
 for epoch in range(epochs):
+    running_loss = 0.0
     for batch_features, batch_labels in train_dataLoader:
-        # caluclate the prediction
-        prediction = model(batch_features)
-        #calculate the losss
-        loss = criterion(prediction, batch_labels)
-        # set the gradient to 0
-        optimizer.zero_grad
-        # Backpropogate to update the weight and bias
+        optimizer.zero_grad()
+        logits = model(batch_features)
+        loss = criterion(logits, batch_labels)
         loss.backward()
-        # calculate the gradient when doing backpropogate
         optimizer.step()
+        running_loss += loss.item() * batch_features.size(0)
+    if (epoch + 1) % 10 == 0:
+        print(f"Epoch {epoch+1}/{epochs} - loss: {running_loss/len(train_dataset):.4f}")
 
+# start testing the model
 model.eval()
-
+correct, total = 0, 0
 with torch.no_grad():
-    logits = model(x_test_tensor)
-    probabilities = torch.sigmoid(logits)
-    predicted_classes = (probabilities >= 0.5).int().cpu().numpy().ravel()
+    for batch_features, batch_labels in test_dataLoader:
+        probs = torch.sigmoid(model(batch_features))
+        preds = (probs > 0.5).float()
+        correct += (preds == batch_labels).sum().item()
+        total += batch_labels.size(0)
+print(f"Test accuracy: {correct/total:.4f}")
     
-    if predicted_classes >=0.5:
-        print("Pass")
-    print("Fail")
 
-
-
-
-# Save the model
+# save the model and its important parameter
+import joblib 
 torch.save(
-    {
-        "input_features": input_features,
-        "model_state_dict": model.state_dict()
-    },
-    "my_model.pt"
+    {"state_dict": model.state_dict(), "input_features": input_features},
+    "model.pth"
 )
-
-# Store the preprocessor and encoder records
-import joblib
-joblib.dump(preprocessor, "preprocessor.pkl")
-joblib.dump(encoder, "label_encoder.pkl")
+joblib.dump(preprocessor, "preprocessor.joblib")
+joblib.dump(encoder, "label_encoder.joblib")
+print("Model, preprocessor and label encoder saved.")

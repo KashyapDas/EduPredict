@@ -1,9 +1,5 @@
-from functionCall import predict_result
+from functionCall import predict_student
 
-result = predict_result(
-    study_hrs=8,
-    attendance=85,
-    gender="male"
-)
-
-print(result)
+print(predict_student(study_hrs=1, attendance=40, gender="male"))   # expect Fail
+print(predict_student(study_hrs=1, attendance=95, gender="male"))   # expect Pass
+print(predict_student(study_hrs=9, attendance=40, gender="male"))   # expect Pass

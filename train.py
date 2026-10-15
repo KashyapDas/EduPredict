@@ -1,0 +1,52 @@
+import torch 
+import torch.nn as nn
+import pandas as pd
+from sklearn.model_selection import train_test_split
+
+# get the dataset
+df = pd.read_csv("student_data.csv")
+print(df.head())
+
+# if duplicate value exists then remove it
+if df.duplicated().any():
+    df = df.drop_duplicates()
+
+# split the dataset into input_dataset and output_dataset and then split them it 80/20
+x = df.drop("passed",axis=1)
+y = df["passed"]
+
+x_train, x_test, y_train, y_test = train_test_split(
+    x,y,
+    test_size=0.2,
+    random_state=42
+)
+
+# data pre-processing
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder
+
+numeric_columns = x_train.select_dtypes(include=["number"]).columns.tolist()
+categorical_column = x_train.select_dtypes(include=["object","category","bool"]).columns.tolist()
+
+numeric_pipelines = Pipeline([
+    ("imputer",SimpleImputer(strategy="median")),
+    ("scaler",StandardScaler())
+])
+
+categorical_pipeline = Pipeline([
+    ("imputer",SimpleImputer(strategy="most_frequent")),
+    ("encode", OneHotEncoder(handle_unknown="ignore", sparse_output=False))
+])
+
+preprocessor = ColumnTransformer([
+    ("numeric",numeric_pipelines, numeric_columns),
+    ("categorical",categorical_pipeline, categorical_column)
+])
+
+x_train = preprocessor.fit_transform(x_train)
+x_test = preprocessor.fit_transform(x_test)
+
+print("Finished")

@@ -100,3 +100,7 @@ torch.save(
     },
     "my_model.pt"
 )
+
+import joblib
+joblib.dump(preprocessor, "preprocessor.pkl")
+joblib.dump(encoder, "label_encoder.pkl")

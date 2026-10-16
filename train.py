@@ -67,10 +67,16 @@ test_dataset = TensorDataset(x_test_tensor, y_test_tensor)
 train_dataLoader = DataLoader(train_dataset, batch_size=32, shuffle=True)
 test_dataLoader = DataLoader(test_dataset, batch_size=32, shuffle=False)
 
+# check if the gpu is availaible or not, otherwise cpu get assigned
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f"Device assigned : {device}")
+
 # create the FNN architecture by calling model.py
 from model import create_model
 input_features = x_train_tensor.shape[1]
 model = create_model(input_features)
+# move the model to the gpu if availaible otherwise cpu get assigned
+model = model.to(device)
 
 # set attributes for training the model
 criterion = nn.BCEWithLogitsLoss()
@@ -84,6 +90,7 @@ model.train()
 for epoch in range(epochs):
     running_loss = 0.0
     for batch_features, batch_labels in train_dataLoader:
+        batch_features, batch_labels = batch_features.to(device), batch_labels.to(device)
         optimizer.zero_grad()
         logits = model(batch_features)
         loss = criterion(logits, batch_labels)
@@ -97,6 +104,7 @@ correct1, total1 = 0, 0
 # do this in testing data
 with torch.no_grad():
     for batch_features, batch_labels in test_dataLoader:
+        batch_features, batch_labels = batch_features.to(device), batch_labels.to(device)
         probs = torch.sigmoid(model(batch_features))
         preds = (probs > 0.5).float()
         correct1 += (preds == batch_labels).sum().item()
@@ -107,6 +115,7 @@ correct2, total2 = 0, 0
 # do this in testing data
 with torch.no_grad():
     for batch_features, batch_labels in train_dataLoader:
+        batch_features, batch_labels = batch_features.to(device), batch_labels.to(device)
         probs = torch.sigmoid(model(batch_features))
         preds = (probs > 0.5).float()
         correct2 += (preds == batch_labels).sum().item()

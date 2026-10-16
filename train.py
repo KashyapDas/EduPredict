@@ -74,7 +74,7 @@ model = create_model(input_features)
 
 # set attributes for training the model
 criterion = nn.BCEWithLogitsLoss()
-optimizer = torch.optim.Adam(model.parameters(), lr = 0.0001)
+optimizer = torch.optim.Adam(model.parameters(), lr = 0.001, weight_decay=1e-4)
 epochs = 100
 
 torch.manual_seed(42)
@@ -90,19 +90,29 @@ for epoch in range(epochs):
         loss.backward()
         optimizer.step()
         running_loss += loss.item() * batch_features.size(0)
-    if (epoch + 1) % 10 == 0:
-        print(f"Epoch {epoch+1}/{epochs} - loss: {running_loss/len(train_dataset):.4f}")
 
 # start testing the model
 model.eval()
-correct, total = 0, 0
+correct1, total1 = 0, 0
+# do this in testing data
 with torch.no_grad():
     for batch_features, batch_labels in test_dataLoader:
         probs = torch.sigmoid(model(batch_features))
         preds = (probs > 0.5).float()
-        correct += (preds == batch_labels).sum().item()
-        total += batch_labels.size(0)
-print(f"Test accuracy: {correct/total:.4f}")
+        correct1 += (preds == batch_labels).sum().item()
+        total1 += batch_labels.size(0)
+print(f"Test accuracy in testing data: {correct1/total1:.4f}")
+
+correct2, total2 = 0, 0
+# do this in testing data
+with torch.no_grad():
+    for batch_features, batch_labels in train_dataLoader:
+        probs = torch.sigmoid(model(batch_features))
+        preds = (probs > 0.5).float()
+        correct2 += (preds == batch_labels).sum().item()
+        total2 += batch_labels.size(0)
+print(f"Test accuracy in traning data: {correct2/total2:.4f}")
+    
     
 
 # save the model and its important parameter
